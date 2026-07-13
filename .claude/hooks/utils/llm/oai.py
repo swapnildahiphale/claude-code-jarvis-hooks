@@ -9,6 +9,7 @@
 
 import os
 import sys
+import json
 from dotenv import load_dotenv
 
 # Global debug flag - set based on command line arguments
@@ -117,6 +118,30 @@ Generate ONE witty completion message:"""
     return response
 
 
+def generate_contextual_completion_message(
+    last_user: str | None,
+    last_assistant: str | None,
+    status: str | None = None,
+) -> str | None:
+    """Generate a one-liner from the last turn context."""
+    # Import here so oai.py stays runnable standalone without hooks on PYTHONPATH.
+    hooks_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if hooks_root not in sys.path:
+        sys.path.insert(0, hooks_root)
+    from core.prompts import contextual_completion_prompt
+
+    prompt = contextual_completion_prompt(
+        last_user=last_user,
+        last_assistant=last_assistant,
+        status=status,
+    )
+    response = prompt_llm(prompt)
+    if response:
+        response = response.strip().strip('"').strip("'").strip()
+        response = response.split("\n")[0].strip()
+    return response
+
+
 def generate_notification_message():
     """
     Generate a notification message using OpenAI LLM.
@@ -192,6 +217,21 @@ def main():
             else:
                 print("Error generating notification message")
                 debug_print("generate_notification_message() returned None")
+        elif sys.argv[1] == "--contextual":
+            debug_print("Generating contextual completion message...")
+            try:
+                payload = json.load(sys.stdin)
+            except json.JSONDecodeError:
+                payload = {}
+            message = generate_contextual_completion_message(
+                last_user=payload.get("last_user"),
+                last_assistant=payload.get("last_assistant"),
+                status=payload.get("status"),
+            )
+            if message:
+                print(message)
+            else:
+                print("Error generating contextual completion message")
         else:
             prompt_text = " ".join(sys.argv[1:])
             debug_print(f"Using custom prompt: {prompt_text}")
@@ -201,7 +241,7 @@ def main():
             else:
                 print("Error calling OpenAI API")
     else:
-        print("Usage: ./oai.py [--debug] 'your prompt here' or ./oai.py [--debug] --completion or ./oai.py [--debug] --notification")
+        print("Usage: ./oai.py [--debug] 'your prompt here' or ./oai.py [--debug] --completion or ./oai.py [--debug] --notification or ./oai.py [--debug] --contextual (stdin JSON)")
 
 
 if __name__ == "__main__":

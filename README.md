@@ -117,6 +117,8 @@ Copy the `.claude/` folder (and `.env`) into any project, or open this repo dire
 
 **Limitation:** Cursor ignores the Claude `Notification` hook, so "agent needs your input" voice alerts do not fire in Cursor. Completion voice on `stop` does.
 
+**Contextual voice:** On each `stop`, JARVIS reads `transcript_path` from the hook payload, extracts the last turn (or a `<!-- TTS_SUMMARY ... TTS_SUMMARY -->` tag if present), and speaks a one-liner about what just happened. Optional env: `JARVIS_TRANSCRIPT_SETTLE_SECS=2` (wait for transcript flush).
+
 See `docs/superpowers/2026-07-13-jarvis-cursor-hooks-wrap-up.md` for planning notes and future work.
 
 ## 🏗️ Architecture
