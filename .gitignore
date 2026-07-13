@@ -6,3 +6,11 @@ logs/
 
 # Local settings
 .claude/settings.local.json
+
+# Python test cache
+.pytest_cache/
+tests/__pycache__/
+**/__pycache__/
+
+# Cursor local state (not hook config)
+.cursor/hooks/state/

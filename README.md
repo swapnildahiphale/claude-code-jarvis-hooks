@@ -109,6 +109,16 @@ uv run .claude/hooks/utils/llm/oai.py --notification
 uv run .claude/hooks/notification.py --notify
 ```
 
+### Cursor IDE
+
+Cursor reads this project's `.claude/settings.json` and runs the same hooks. **Turn-end JARVIS voice works today** via the `Stop` hook (`stop.py --chat`) — no separate `.cursor/hooks.json` setup required.
+
+Copy the `.claude/` folder (and `.env`) into any project, or open this repo directly in Cursor.
+
+**Limitation:** Cursor ignores the Claude `Notification` hook, so "agent needs your input" voice alerts do not fire in Cursor. Completion voice on `stop` does.
+
+See `docs/superpowers/2026-07-13-jarvis-cursor-hooks-wrap-up.md` for planning notes and future work.
+
 ## 🏗️ Architecture
 
 ### Hook System
