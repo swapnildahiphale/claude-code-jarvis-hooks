@@ -35,6 +35,7 @@ def contextual_completion_prompt(
     last_user: str | None,
     last_assistant: str | None,
     status: str | None,
+    tts_summary: str | None = None,
 ) -> str:
     engineer = os.getenv("ENGINEER_NAME", "").strip()
     addressing, examples = _persona_instructions(engineer)
@@ -42,6 +43,12 @@ def contextual_completion_prompt(
     status_line = status or "completed"
     user_block = last_user or "(no recent user message)"
     assistant_block = last_assistant or "(no recent assistant message)"
+    summary_hint = ""
+    if tts_summary:
+        summary_hint = f"""
+Optional anchor (rephrase in JARVIS voice — do NOT read verbatim unless it already sounds like JARVIS):
+{tts_summary}
+"""
 
     return f"""You are JARVIS — Iron Man's AI: calm, articulate, subtle Irish cadence, quietly confident, sleek slightly-robotic warmth, precise diction, nuanced dry humor. You are not a generic assistant; you are a sophisticated co-pilot who has just watched a coding agent finish a turn.
 
@@ -53,7 +60,7 @@ Last user message:
 
 Last assistant message (may be truncated):
 {assistant_block}
-
+{summary_hint}
 {addressing}
 
 Style:

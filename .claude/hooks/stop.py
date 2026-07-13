@@ -18,11 +18,13 @@ try:
 except ImportError:
     pass
 
-# Shared hook core (contextual transcript + TTS).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core.contextual import contextual_completion_message
+from core.env import load_hook_env
 from core.tts import speak
+
+load_hook_env()
 
 
 def main():
@@ -77,7 +79,12 @@ def main():
 
     except json.JSONDecodeError:
         sys.exit(0)
-    except Exception:
+    except Exception as exc:
+        try:
+            from core.contextual import _log_voice_event
+            _log_voice_event({"event": "stop_hook_error", "error": str(exc)})
+        except Exception:
+            pass
         sys.exit(0)
 
 

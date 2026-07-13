@@ -90,9 +90,15 @@ def _role_and_text(entry: dict[str, Any]) -> tuple[str | None, str]:
     return str(role), text
 
 
+def _strip_code_fences(text: str) -> str:
+    """Remove fenced code blocks so docs/examples don't fake TTS_SUMMARY tags."""
+    return re.sub(r"```[\w-]*\n.*?```", "", text, flags=re.DOTALL)
+
+
 def extract_tts_summary(text: str) -> str | None:
     if not text:
         return None
+    text = _strip_code_fences(text)
     for pattern in (TTS_SUMMARY_RE, TTS_SUMMARY_PLAIN_RE):
         match = pattern.search(text)
         if match:
@@ -104,11 +110,10 @@ def extract_tts_summary(text: str) -> str | None:
 
 def parse_transcript_lines(lines: list[str]) -> tuple[str, str, str | None]:
     """
-    Return (last_user_text, last_assistant_text, tts_summary_from_assistant).
+    Return (last_user_text, last_assistant_text, tts_summary_from_last_assistant_only).
     """
     last_user = ""
     last_assistant = ""
-    tts_summary: str | None = None
 
     for line in lines:
         line = line.strip()
@@ -130,10 +135,8 @@ def parse_transcript_lines(lines: list[str]) -> tuple[str, str, str | None]:
             last_user = text
         elif role == "assistant":
             last_assistant = text
-            found = extract_tts_summary(text)
-            if found:
-                tts_summary = found
 
+    tts_summary = extract_tts_summary(last_assistant) if last_assistant else None
     return last_user, last_assistant, tts_summary
 
 

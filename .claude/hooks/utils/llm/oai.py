@@ -120,18 +120,21 @@ def generate_contextual_completion_message(
     last_user: str | None,
     last_assistant: str | None,
     status: str | None = None,
+    tts_summary: str | None = None,
 ) -> str | None:
     """Generate a one-liner from the last turn context."""
-    # Import here so oai.py stays runnable standalone without hooks on PYTHONPATH.
     hooks_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if hooks_root not in sys.path:
         sys.path.insert(0, hooks_root)
     from core.prompts import contextual_completion_prompt
+    from core.env import load_hook_env
 
+    load_hook_env()
     prompt = contextual_completion_prompt(
         last_user=last_user,
         last_assistant=last_assistant,
         status=status,
+        tts_summary=tts_summary,
     )
     response = prompt_llm(prompt)
     if response:
@@ -225,6 +228,7 @@ def main():
                 last_user=payload.get("last_user"),
                 last_assistant=payload.get("last_assistant"),
                 status=payload.get("status"),
+                tts_summary=payload.get("tts_summary"),
             )
             if message:
                 print(message)

@@ -30,6 +30,22 @@ def test_parse_cursor_format_messages():
     assert summary is None
 
 
+def test_extract_tts_summary_ignores_code_fence_examples():
+    text = (
+        "See example:\n"
+        "```html\n"
+        "<!-- TTS_SUMMARY\n"
+        "The plan is written and waiting for your inputs.\n"
+        "TTS_SUMMARY -->\n"
+        "```\n"
+        "Done for real.\n"
+        "<!-- TTS_SUMMARY\n"
+        "Hooks documented, Sir.\n"
+        "TTS_SUMMARY -->"
+    )
+    assert extract_tts_summary(text) == "Hooks documented, Sir."
+
+
 def test_read_turn_context_from_file(tmp_path):
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
