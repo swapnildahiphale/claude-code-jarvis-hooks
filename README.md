@@ -113,7 +113,17 @@ Skip voice when you are already focused on Cursor — useful when you are watchi
 
 When suppressed, the hook skips **both** LLM message generation and TTS (no OpenAI/ElevenLabs tokens spent). Look for `"skipped_llm": true` in `presence_suppressed` log lines.
 
-macOS uses `osascript` to read the frontmost app (default 2s timeout — sub-200ms often times out). Linux is best-effort via `xdotool`. When detection fails, `JARVIS_PRESENCE_FAIL_OPEN=false` suppresses voice; `true` plays anyway. Check `logs/jarvis_voice.jsonl` for `presence_check` and `presence_suppressed` events.
+**Three checkpoints** (each logs `presence_check` or `presence_suppressed` to `logs/jarvis_voice.jsonl`):
+
+| When | What it decides | If Cursor focused |
+|------|-----------------|-------------------|
+| 1. `guard_voice_pipeline` (start of stop/notification hook) | Skip LLM? | No LLM call, no TTS |
+| 2. `speak()` (after message generated) | Skip TTS? | No voice — even if you were away during LLM |
+| 3. `jarvis_say_worker` playback (local TTS only, after audio file built) | Skip playback? | No voice if you returned during generation |
+
+So: away when the task finishes → LLM runs → you switch back to Cursor before audio → **step 2 suppresses voice** (`presence_suppressed` without `skipped_llm`). That is intentional.
+
+On macOS, minimized Cursor windows count as away (`reason: app_minimized`). Linux is best-effort via `xdotool`. When detection fails, `JARVIS_PRESENCE_FAIL_OPEN=false` suppresses; `true` plays anyway.
 
 ## 🎮 Usage
 

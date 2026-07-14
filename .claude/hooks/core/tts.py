@@ -79,11 +79,25 @@ def speak(text: str, timeout: int = 10) -> None:
             return
         script = get_tts_script_path()
         if not script:
+            _log_voice_event({"event": "tts_missing_script", "text_len": len(text)})
             return
-        subprocess.run(
+        _log_voice_event({
+            "event": "tts_started",
+            "provider": Path(script).stem,
+            "text_len": len(text),
+        })
+        result = subprocess.run(
             ["uv", "run", script, text],
             capture_output=True,
+            text=True,
             timeout=timeout,
         )
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-        pass
+        if result.returncode != 0:
+            _log_voice_event({
+                "event": "tts_failed",
+                "provider": Path(script).stem,
+                "returncode": result.returncode,
+                "stderr": (result.stderr or "")[:500],
+            })
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError) as exc:
+        _log_voice_event({"event": "tts_error", "error": str(exc)})

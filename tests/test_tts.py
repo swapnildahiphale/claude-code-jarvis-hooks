@@ -79,6 +79,7 @@ def test_speak_uses_sync_script_when_cloud(mock_popen, mock_run, _mock_notify, t
     script.write_text("# stub\n")
     monkeypatch.setenv("ELEVENLABS_API_KEY", "key")
     monkeypatch.setattr("core.tts.tts_dir", lambda: td)
+    mock_run.return_value = MagicMock(returncode=0, stderr="")
     speak("Hello")
     mock_popen.assert_not_called()
     mock_run.assert_called_once()

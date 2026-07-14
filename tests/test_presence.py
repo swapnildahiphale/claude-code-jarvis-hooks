@@ -52,10 +52,18 @@ def test_should_notify_gate_disabled():
         assert should_notify() is True
 
 
+@patch("core.presence._darwin_app_has_visible_window", return_value=True)
 @patch("core.presence.probe_frontmost", return_value=("Cursor", None))
-def test_should_notify_cursor_frontmost_suppresses(_mock_probe):
+def test_should_notify_cursor_frontmost_suppresses(_mock_probe, _mock_visible):
     with patch.dict(os.environ, {"JARVIS_NOTIFY_ONLY_WHEN_AWAY": "true"}, clear=False):
         assert should_notify() is False
+
+
+@patch("core.presence._darwin_app_has_visible_window", return_value=False)
+@patch("core.presence.probe_frontmost", return_value=("Cursor", None))
+def test_should_notify_cursor_minimized_notifies(_mock_probe, _mock_visible):
+    with patch.dict(os.environ, {"JARVIS_NOTIFY_ONLY_WHEN_AWAY": "true"}, clear=False):
+        assert should_notify() is True
 
 
 @patch("core.presence.probe_frontmost", return_value=("Safari", None))
@@ -141,8 +149,9 @@ def test_frontmost_app_darwin(mock_run):
     assert mock_run.call_args[0][0][0] == "osascript"
 
 
+@patch("core.presence._darwin_app_has_visible_window", return_value=True)
 @patch("core.presence.probe_frontmost", return_value=("Cursor", None))
-def test_guard_voice_pipeline_skips_llm_path(_mock_probe):
+def test_guard_voice_pipeline_skips_llm_path(_mock_probe, _mock_visible):
     with patch.dict(os.environ, {"JARVIS_NOTIFY_ONLY_WHEN_AWAY": "true"}, clear=False):
         assert guard_voice_pipeline("stop_hook") is False
 
@@ -153,8 +162,9 @@ def test_guard_voice_pipeline_allows_llm_path(_mock_probe):
         assert guard_voice_pipeline("stop_hook") is True
 
 
+@patch("core.presence._darwin_app_has_visible_window", return_value=True)
 @patch("core.presence.probe_frontmost", return_value=("Cursor", None))
-def test_stop_hook_skips_contextual_and_speak(_mock_probe, monkeypatch, tmp_path):
+def test_stop_hook_skips_contextual_and_speak(_mock_probe, _mock_visible, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("JARVIS_NOTIFY_ONLY_WHEN_AWAY", "true")
     ctx_calls: list[int] = []

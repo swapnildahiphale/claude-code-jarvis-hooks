@@ -122,6 +122,53 @@ def _is_focused_app(frontmost: str, apps: list[str]) -> bool:
     return False
 
 
+def _darwin_app_has_visible_window(app_name: str) -> bool:
+    """True when the app has at least one non-minimized visible window."""
+    safe_name = app_name.replace('"', "")
+    script = f'''
+tell application "System Events"
+  if not (exists process "{safe_name}") then
+    return "no"
+  end if
+  tell process "{safe_name}"
+    repeat with w in windows
+      if miniaturized of w is false and visible of w is true then
+        return "yes"
+      end if
+    end repeat
+  end tell
+end tell
+return "no"
+'''
+    timeout_s = presence_timeout_ms() / 1000.0
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+        )
+        if result.returncode != 0:
+            return True
+        return (result.stdout or "").strip().lower() == "yes"
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+        return True
+
+
+def _app_is_actively_present(frontmost: str, apps: list[str]) -> bool:
+    """Frontmost match plus, on macOS, a visible non-minimized window."""
+    if not _is_focused_app(frontmost, apps):
+        return False
+    if platform.system() != "Darwin":
+        return True
+    matched = next(
+        (app for app in apps if app.lower() == frontmost.lower()),
+        frontmost,
+    )
+    return _darwin_app_has_visible_window(matched)
+
+
 def should_notify() -> bool:
     """
     Return True if TTS should fire.
@@ -150,14 +197,18 @@ def should_notify() -> bool:
         )
         return notify
 
-    focused = _is_focused_app(frontmost, apps)
+    focused = _app_is_actively_present(frontmost, apps)
+    if _is_focused_app(frontmost, apps) and not focused:
+        reason = "app_minimized"
+    else:
+        reason = "app_focused" if focused else "app_not_focused"
     notify = not focused
     _log_presence_decision(
         gate_enabled=True,
         frontmost=frontmost,
         presence_apps=apps,
         notify=notify,
-        reason="app_focused" if focused else "app_not_focused",
+        reason=reason,
     )
     return notify
 

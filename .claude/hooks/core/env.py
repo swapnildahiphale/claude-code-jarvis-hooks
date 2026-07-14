@@ -15,4 +15,5 @@ def load_hook_env() -> None:
         return
     env_path = repo_root() / ".env"
     if env_path.exists():
-        load_dotenv(env_path, override=False)
+        # Hook subprocesses may inherit empty parent env; repo .env should win.
+        load_dotenv(env_path, override=True)
