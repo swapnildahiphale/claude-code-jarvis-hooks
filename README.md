@@ -80,6 +80,29 @@ Claude Code Jarvis is a sophisticated hook system that enhances your Claude Code
    # The hooks will automatically activate when using Claude Code
    ```
 
+### Install in another project
+
+From this repo:
+
+```bash
+./scripts/install-jarvis.sh /path/to/your-project
+./scripts/install-jarvis.sh /path/to/your-project --cloud   # + cloud environment.json
+```
+
+This copies `.claude/hooks/`, merges JARVIS entries into `.claude/settings.json` and `.cursor/hooks.json`, and creates `.env` from `.env.example` if missing. Safe to re-run after updates.
+
+Requires `uv` on the machine running Cursor (not installed by this script).
+
+### Local JARVIS voice (optional, no API keys)
+
+Use the [`jarvis-voice`](https://github.com/swapnildahiphale/jarvis-voice) F5-TTS clone instead of ElevenLabs/OpenAI when cloud keys are absent:
+
+1. Set up jarvis-voice: `./scripts/setup.sh`, ensure `jarvis-say` is on PATH.
+2. In `.env`: `JARVIS_USE_LOCAL_TTS=true`
+3. Test: `uv run .claude/hooks/core/jarvis_say_worker.py --text "JARVIS online, Sir."`
+
+Playback runs in the background after each stop hook (~30–55s for the first clip on Apple Silicon). Cloud agents should leave `JARVIS_USE_LOCAL_TTS=false`.
+
 ## 🎮 Usage
 
 ### Automatic Operation
