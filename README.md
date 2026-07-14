@@ -80,6 +80,51 @@ Claude Code Jarvis is a sophisticated hook system that enhances your Claude Code
    # The hooks will automatically activate when using Claude Code
    ```
 
+### Install in another project
+
+From this repo:
+
+```bash
+./scripts/install-jarvis.sh /path/to/your-project
+./scripts/install-jarvis.sh /path/to/your-project --cloud   # + cloud environment.json
+```
+
+This copies `.claude/hooks/`, merges JARVIS entries into `.claude/settings.json` and `.cursor/hooks.json`, and creates `.env` from `.env.example` if missing. Safe to re-run after updates.
+
+Requires `uv` on the machine running Cursor (not installed by this script).
+
+### Local JARVIS voice (optional, no API keys)
+
+Use the [`jarvis-voice`](https://github.com/swapnildahiphale/jarvis-voice) F5-TTS clone instead of ElevenLabs/OpenAI when cloud keys are absent:
+
+1. Set up jarvis-voice: `./scripts/setup.sh`, ensure `jarvis-say` is on PATH.
+2. In `.env`: `JARVIS_USE_LOCAL_TTS=true`
+3. Test: `uv run .claude/hooks/core/jarvis_say_worker.py --text "JARVIS online, Sir."`
+
+Playback runs in the background after each stop hook (~30–55s for the first clip on Apple Silicon). Cloud agents should leave `JARVIS_USE_LOCAL_TTS=false`.
+
+### Presence gate (optional, speak only when away)
+
+Skip voice when you are already focused on Cursor — useful when you are watching the agent work:
+
+1. In `.env`: `JARVIS_NOTIFY_ONLY_WHEN_AWAY=true`
+2. Optional: `JARVIS_PRESENCE_APPS=Cursor` (comma-separated app names)
+3. Debug suppressions in `logs/jarvis_voice.jsonl` (`presence_suppressed` events)
+
+When suppressed, the hook skips **both** LLM message generation and TTS (no OpenAI/ElevenLabs tokens spent). Look for `"skipped_llm": true` in `presence_suppressed` log lines.
+
+**Three checkpoints** (each logs `presence_check` or `presence_suppressed` to `logs/jarvis_voice.jsonl`):
+
+| When | What it decides | If Cursor focused |
+|------|-----------------|-------------------|
+| 1. `guard_voice_pipeline` (start of stop/notification hook) | Skip LLM? | No LLM call, no TTS |
+| 2. `speak()` (after message generated) | Skip TTS? | No voice — even if you were away during LLM |
+| 3. `jarvis_say_worker` playback (local TTS only, after audio file built) | Skip playback? | No voice if you returned during generation |
+
+So: away when the task finishes → LLM runs → you switch back to Cursor before audio → **step 2 suppresses voice** (`presence_suppressed` without `skipped_llm`). That is intentional.
+
+On macOS, minimized Cursor windows count as away (`reason: app_minimized`). Linux is best-effort via `xdotool`. When detection fails, `JARVIS_PRESENCE_FAIL_OPEN=false` suppresses; `true` plays anyway.
+
 ## 🎮 Usage
 
 ### Automatic Operation
@@ -108,6 +153,18 @@ uv run .claude/hooks/utils/llm/oai.py --notification
 # Test notification hook
 uv run .claude/hooks/notification.py --notify
 ```
+
+### Cursor IDE
+
+Cursor reads this project's `.claude/settings.json` and runs the same hooks. **Turn-end JARVIS voice works today** via the `Stop` hook (`stop.py --chat`) — no separate `.cursor/hooks.json` setup required.
+
+Copy the `.claude/` folder (and `.env`) into any project, or open this repo directly in Cursor.
+
+**Limitation:** Cursor ignores the Claude `Notification` hook, so "agent needs your input" voice alerts do not fire in Cursor. Completion voice on `stop` does.
+
+**Contextual voice:** On each `stop`, JARVIS reads `transcript_path` from the hook payload, extracts the last turn (or a `<!-- TTS_SUMMARY ... TTS_SUMMARY -->` tag if present), and speaks a one-liner about what just happened. Optional env: `JARVIS_TRANSCRIPT_SETTLE_SECS=2` (wait for transcript flush).
+
+See `docs/superpowers/2026-07-13-jarvis-cursor-hooks-wrap-up.md` for planning notes and future work.
 
 ## 🏗️ Architecture
 
@@ -168,7 +225,7 @@ All operations are logged to `logs/`:
 # Core Configuration
 ENGINEER_NAME=YourName                    # For personalized messages
 CLAUDE_HOOKS_OPENAI_API_KEY=sk-...        # OpenAI API key
-CLAUDE_HOOKS_OPENAI_MODEL=gpt-4.1-nano   # Model selection
+CLAUDE_HOOKS_OPENAI_MODEL=gpt-5-nano
 
 # Voice Configuration
 ELEVENLABS_API_KEY=sk_...                 # ElevenLabs API key

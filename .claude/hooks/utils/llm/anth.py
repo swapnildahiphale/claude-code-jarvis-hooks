@@ -9,6 +9,7 @@
 
 import os
 import sys
+import json
 from dotenv import load_dotenv
 
 # Global debug flag - set based on command line arguments
@@ -49,8 +50,8 @@ def prompt_llm(prompt_text):
         debug_print("Sending request to Anthropic...")
         message = client.messages.create(
             model="claude-3-5-haiku-20241022",  # Fastest Anthropic model
-            max_tokens=100,
-            temperature=0.7,
+            max_tokens=150,
+            temperature=0.75,
             messages=[{"role": "user", "content": prompt_text}],
         )
 
@@ -86,14 +87,12 @@ def generate_completion_message():
 Generate a short completion message for when you finish a coding task, embodying this sophisticated, slightly sarcastic persona.
 
 Requirements:
-- Keep it under 12 words
+- One or two short sentences; about 15–28 words
 - Make it positive and future focused
-- Use natural, conversational language
-- Focus on completion/readiness
+- Use natural, conversational language with gentle dry wit
+- Address the engineer as Sir or by name when ENGINEER_NAME is set
 - Do NOT include quotes, formatting, or explanations
 - Return ONLY the completion message text
-- Do not have "Sir" and "{name_instruction}" in the message
-
 
 Your voice should sound polished and poised, with hints of dry humor and quiet confidence. Think lines like "Sir, the diagnostics are complete. Shall I proceed?" but adapted for task completion.
 
@@ -109,6 +108,32 @@ Generate ONE witty completion message:"""
         # Take first line if multiple lines
         response = response.split("\n")[0].strip()
 
+    return response
+
+
+def generate_contextual_completion_message(
+    last_user: str | None,
+    last_assistant: str | None,
+    status: str | None = None,
+    tts_summary: str | None = None,
+) -> str | None:
+    hooks_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if hooks_root not in sys.path:
+        sys.path.insert(0, hooks_root)
+    from core.prompts import contextual_completion_prompt
+    from core.env import load_hook_env
+
+    load_hook_env()
+    prompt = contextual_completion_prompt(
+        last_user=last_user,
+        last_assistant=last_assistant,
+        status=status,
+        tts_summary=tts_summary,
+    )
+    response = prompt_llm(prompt)
+    if response:
+        response = response.strip().strip('"').strip("'").strip()
+        response = response.split("\n")[0].strip()
     return response
 
 
@@ -187,6 +212,22 @@ def main():
             else:
                 print("Error generating notification message")
                 debug_print("generate_notification_message() returned None")
+        elif sys.argv[1] == "--contextual":
+            debug_print("Generating contextual completion message...")
+            try:
+                payload = json.load(sys.stdin)
+            except json.JSONDecodeError:
+                payload = {}
+            message = generate_contextual_completion_message(
+                last_user=payload.get("last_user"),
+                last_assistant=payload.get("last_assistant"),
+                status=payload.get("status"),
+                tts_summary=payload.get("tts_summary"),
+            )
+            if message:
+                print(message)
+            else:
+                print("Error generating contextual completion message")
         else:
             prompt_text = " ".join(sys.argv[1:])
             debug_print(f"Using custom prompt: {prompt_text}")
@@ -196,7 +237,7 @@ def main():
             else:
                 print("Error calling Anthropic API")
     else:
-        print("Usage: ./anth.py [--debug] 'your prompt here' or ./anth.py [--debug] --completion or ./anth.py [--debug] --notification")
+        print("Usage: ./anth.py [--debug] 'your prompt here' or ./anth.py [--debug] --completion or ./anth.py [--debug] --notification or ./anth.py [--debug] --contextual (stdin JSON)")
 
 
 if __name__ == "__main__":
