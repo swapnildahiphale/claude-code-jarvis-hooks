@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.contextual import _log_voice_event
 from core.debounce import state_dir
 from core.env import load_hook_env
+from core.presence import should_notify
 
 
 def _jarvis_say_binary() -> str | None:
@@ -80,6 +81,14 @@ def run_jarvis_say(text: str) -> None:
                 "event": "jarvis_say_failed",
                 "returncode": result.returncode,
                 "stderr": (result.stderr or "")[:500],
+            })
+            return
+
+        if not should_notify():
+            _log_voice_event({
+                "event": "presence_suppressed",
+                "text_len": len(text),
+                "stage": "playback",
             })
             return
 

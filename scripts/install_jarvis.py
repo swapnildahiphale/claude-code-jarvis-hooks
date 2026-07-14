@@ -266,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
     print("  Local: enable third-party skills in Cursor; fill .env with API keys.")
     print("  Cloud: commit .cursor/hooks.json; add secrets in Cursor dashboard.")
     print("  Local TTS: install jarvis-voice, set JARVIS_USE_LOCAL_TTS=true in .env (macOS only).")
+    print("  Presence: set JARVIS_NOTIFY_ONLY_WHEN_AWAY=true to skip voice while Cursor is focused.")
     print('  Test:  uv run .claude/hooks/utils/tts/elevenlabs_tts.py "JARVIS online, Sir."')
     return 0
 

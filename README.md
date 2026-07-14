@@ -103,6 +103,16 @@ Use the [`jarvis-voice`](https://github.com/swapnildahiphale/jarvis-voice) F5-TT
 
 Playback runs in the background after each stop hook (~30–55s for the first clip on Apple Silicon). Cloud agents should leave `JARVIS_USE_LOCAL_TTS=false`.
 
+### Presence gate (optional, speak only when away)
+
+Skip voice when you are already focused on Cursor — useful when you are watching the agent work:
+
+1. In `.env`: `JARVIS_NOTIFY_ONLY_WHEN_AWAY=true`
+2. Optional: `JARVIS_PRESENCE_APPS=Cursor` (comma-separated app names)
+3. Debug suppressions in `logs/jarvis_voice.jsonl` (`presence_suppressed` events)
+
+macOS uses `osascript` to read the frontmost app (default 2s timeout — sub-200ms often times out). Linux is best-effort via `xdotool`. When detection fails, `JARVIS_PRESENCE_FAIL_OPEN=false` suppresses voice; `true` plays anyway. Check `logs/jarvis_voice.jsonl` for `presence_check` and `presence_suppressed` events.
+
 ## 🎮 Usage
 
 ### Automatic Operation

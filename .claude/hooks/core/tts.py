@@ -3,7 +3,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from core.contextual import _log_voice_event
+from core.env import load_hook_env
 from core.paths import tts_dir
+from core.presence import should_notify
 
 _WORKER = Path(__file__).resolve().parent / "jarvis_say_worker.py"
 
@@ -62,7 +65,14 @@ def speak_local_async(text: str) -> None:
 
 def speak(text: str, timeout: int = 10) -> None:
     try:
+        load_hook_env()
         if not text.strip():
+            return
+        if not should_notify():
+            _log_voice_event({
+                "event": "presence_suppressed",
+                "text_len": len(text),
+            })
             return
         if should_use_local_tts():
             speak_local_async(text)

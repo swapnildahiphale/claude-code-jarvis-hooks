@@ -58,8 +58,9 @@ def test_local_tts_missing_binary_falls_through(monkeypatch):
     assert should_use_local_tts() is False
 
 
+@patch("core.tts.should_notify", return_value=True)
 @patch("core.tts.subprocess.Popen")
-def test_speak_spawns_worker(mock_popen, monkeypatch):
+def test_speak_spawns_worker(mock_popen, _mock_notify, monkeypatch):
     monkeypatch.setattr("core.tts.should_use_local_tts", lambda: True)
     speak("Sir, online.")
     mock_popen.assert_called_once()
@@ -68,9 +69,10 @@ def test_speak_spawns_worker(mock_popen, monkeypatch):
     assert args[1]["start_new_session"] is True
 
 
+@patch("core.tts.should_notify", return_value=True)
 @patch("core.tts.subprocess.run")
 @patch("core.tts.subprocess.Popen")
-def test_speak_uses_sync_script_when_cloud(mock_popen, mock_run, tmp_path, monkeypatch):
+def test_speak_uses_sync_script_when_cloud(mock_popen, mock_run, _mock_notify, tmp_path, monkeypatch):
     td = tmp_path / "tts"
     td.mkdir()
     script = td / "elevenlabs_tts.py"
@@ -103,9 +105,10 @@ def test_get_tts_script_path_pyttsx3_fallback(tmp_path, monkeypatch):
     assert get_tts_script_path() == str(py)
 
 
+@patch("core.jarvis_say_worker.should_notify", return_value=True)
 @patch("core.jarvis_say_worker.subprocess.run")
 @patch("core.jarvis_say_worker._play_wav", return_value=True)
-def test_worker_runs_jarvis_say_and_plays(mock_play, mock_run, tmp_path, monkeypatch):
+def test_worker_runs_jarvis_say_and_plays(mock_play, mock_run, _mock_notify, tmp_path, monkeypatch):
     from core.jarvis_say_worker import run_jarvis_say
 
     fake_bin = tmp_path / "jarvis-say"
