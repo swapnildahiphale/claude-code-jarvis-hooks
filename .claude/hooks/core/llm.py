@@ -22,7 +22,7 @@ def _run_llm_script(script_name: str, flag: str) -> str | None:
             ["uv", "run", str(script), flag],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()

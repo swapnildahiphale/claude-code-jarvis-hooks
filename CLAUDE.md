@@ -57,7 +57,7 @@ uv run .claude/hooks/utils/llm/oai.py --notification
 - `ENGINEER_NAME`: User's name for personalized messages
 - `CLAUDE_HOOKS_OPENAI_API_KEY`: OpenAI API key
 - `CLAUDE_HOOKS_OPENAI_API_BASE_URL`: OpenAI API base URL
-- `CLAUDE_HOOKS_OPENAI_MODEL`: Model name (default: "gpt-4.1-nano")
+- `CLAUDE_HOOKS_OPENAI_MODEL`: Model name (default: `gpt-5-nano`)
 - `ELEVENLABS_API_KEY`: ElevenLabs API key
 - `ELEVENLABS_VOICE_ID`: ElevenLabs voice ID
 - `ELEVENLABS_MODEL_ID`: ElevenLabs model ID

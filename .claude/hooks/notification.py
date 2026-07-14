@@ -51,7 +51,7 @@ def get_llm_notification_message():
                 ], 
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=30
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()
@@ -68,7 +68,7 @@ def get_llm_notification_message():
                 ], 
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=30
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()

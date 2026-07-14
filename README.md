@@ -215,7 +215,7 @@ All operations are logged to `logs/`:
 # Core Configuration
 ENGINEER_NAME=YourName                    # For personalized messages
 CLAUDE_HOOKS_OPENAI_API_KEY=sk-...        # OpenAI API key
-CLAUDE_HOOKS_OPENAI_MODEL=gpt-4.1-nano   # Model selection
+CLAUDE_HOOKS_OPENAI_MODEL=gpt-5-nano
 
 # Voice Configuration
 ELEVENLABS_API_KEY=sk_...                 # ElevenLabs API key

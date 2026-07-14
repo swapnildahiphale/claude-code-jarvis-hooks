@@ -7,113 +7,93 @@
 # ]
 # ///
 
+import json
 import os
 import sys
-import json
+
 from dotenv import load_dotenv
 
-# Global debug flag - set based on command line arguments
+DEFAULT_MODEL = "gpt-5-nano"
+DEFAULT_MAX_COMPLETION_TOKENS = 2000
+
 DEBUG_MODE = False
 
 
-def debug_print(message):
-    """Print debug message only if debug mode is enabled."""
+def debug_print(message: str) -> None:
     if DEBUG_MODE:
         print(f"DEBUG: {message}", file=sys.stderr)
 
 
-def prompt_llm(prompt_text):
-    """
-    Base OpenAI LLM prompting method using fastest model.
+def _max_completion_tokens() -> int:
+    raw = os.getenv("CLAUDE_HOOKS_OPENAI_MAX_COMPLETION_TOKENS", "").strip()
+    if raw.isdigit():
+        return int(raw)
+    return DEFAULT_MAX_COMPLETION_TOKENS
 
-    Args:
-        prompt_text (str): The prompt to send to the model
 
-    Returns:
-        str: The model's response text, or None if error
-    """
+def _clean_line(text: str) -> str:
+    line = text.strip().strip('"').strip("'").split("\n")[0].strip()
+    return line
+
+
+def prompt_llm(prompt_text: str) -> str | None:
+    """Call gpt-5-nano via Chat Completions (max_completion_tokens only)."""
     load_dotenv()
 
     api_key = os.getenv("CLAUDE_HOOKS_OPENAI_API_KEY")
-    api_base_url = os.getenv("CLAUDE_HOOKS_OPENAI_API_BASE_URL")
-    model = os.getenv("CLAUDE_HOOKS_OPENAI_MODEL", "gpt-4.1-nano")  # Default to fastest model
-    
-    # Debug: Check environment variables
     if not api_key:
-        debug_print("Missing API key. Expected env var: CLAUDE_HOOKS_OPENAI_API_KEY")
+        debug_print("Missing CLAUDE_HOOKS_OPENAI_API_KEY")
         return None
-    
-    debug_print(f"API Key found: {api_key[:10]}...")
-    debug_print(f"API Base URL: {api_base_url}")
+
+    model = os.getenv("CLAUDE_HOOKS_OPENAI_MODEL", DEFAULT_MODEL).strip()
+    api_base_url = os.getenv("CLAUDE_HOOKS_OPENAI_API_BASE_URL")
+
     debug_print(f"Model: {model}")
+    debug_print(f"max_completion_tokens: {_max_completion_tokens()}")
 
     try:
         from openai import OpenAI
 
         client = OpenAI(api_key=api_key, base_url=api_base_url)
-        
-        debug_print("Sending request to OpenAI...")
         response = client.chat.completions.create(
-            model=model,  # Model from environment variable
+            model=model,
             messages=[{"role": "user", "content": prompt_text}],
-            max_tokens=150,
-            temperature=0.75
+            max_completion_tokens=_max_completion_tokens(),
         )
-
-        result = response.choices[0].message.content.strip()
+        result = (response.choices[0].message.content or "").strip()
+        if not result:
+            debug_print(f"Empty response (finish_reason={response.choices[0].finish_reason})")
+            return None
         debug_print(f"Received response: {result}")
         return result
-
-    except Exception as e:
-        debug_print(f"Exception occurred: {type(e).__name__}: {str(e)}")
+    except Exception as exc:
+        debug_print(f"{type(exc).__name__}: {exc}")
         return None
 
 
-def generate_completion_message():
-    """
-    Generate a completion message using OpenAI LLM.
-
-    Returns:
-        str: A natural language completion message, or None if error
-    """
+def generate_completion_message() -> str | None:
     engineer_name = os.getenv("ENGINEER_NAME", "").strip()
-
     if engineer_name:
-        name_instruction = f"Sometimes (about 30% of the time) include the engineer's name '{engineer_name}' in a natural way, with subtle formality like 'Sir' or '{engineer_name}'."
-        examples = f"""Examples of the sophisticated, witty style: 
-- Standard: "Diagnostics complete, shall we proceed?", "Task executed flawlessly, naturally.", "Another masterpiece delivered.", "Work concluded with typical excellence."
-- Personalized: "Sir, the code is pristine as expected.", "Brilliantly done, {engineer_name}, if I may say so.", "{engineer_name}, we've outdone ourselves again.", "Ready for your next challenge, {engineer_name}." """
+        examples = f"""Examples:
+- "Diagnostics complete, shall we proceed?"
+- "Sir, the code is pristine as expected."
+- "Brilliantly done, {engineer_name}, if I may say so."
+- "Ready for your next challenge, {engineer_name}." """
     else:
-        name_instruction = ""
-        examples = """Examples of the sophisticated, witty style: "Diagnostics complete, shall we proceed?", "Task executed flawlessly, naturally.", "Another masterpiece delivered.", "Work concluded with typical excellence.", "Mission accomplished with characteristic precision.", "Code deployed with surgical precision." """
+        examples = """Examples:
+- "Diagnostics complete, shall we proceed?"
+- "Task executed flawlessly, naturally."
+- "Another masterpiece delivered." """
 
-    prompt = f"""You are a highly advanced AI assistant with a calm, articulate voice and subtle Irish accent. You're intelligent, efficient, quietly confident with a sleek, slightly robotic timbre. Your tone is steady and professional yet conveys warmth and gentle wit. You have precise diction, poised pacing, and nuanced dry humor.
+    prompt = f"""You are JARVIS: calm, articulate, dry wit, address the user as Sir when natural.
 
-Generate a short completion message for when you finish a coding task, embodying this sophisticated, slightly sarcastic persona.
+Write one short completion line (15–28 words) for when a coding task just finished.
+Return only the line, no quotes.
 
-Requirements:
-- One or two short sentences; about 15–28 words
-- Make it positive and future focused
-- Use natural, conversational language with gentle dry wit
-- Address the engineer as Sir or by name when ENGINEER_NAME is set
-- Do NOT include quotes, formatting, or explanations
-- Return ONLY the completion message text
-
-Your voice should sound polished and poised, with hints of dry humor and quiet confidence. Think lines like "Sir, the diagnostics are complete. Shall I proceed?" but adapted for task completion.
-
-{examples}
-
-Generate ONE witty completion message:"""
+{examples}"""
 
     response = prompt_llm(prompt)
-
-    # Clean up response - remove quotes and extra formatting
-    if response:
-        response = response.strip().strip('"').strip("'").strip()
-        # Take first line if multiple lines
-        response = response.split("\n")[0].strip()
-
-    return response
+    return _clean_line(response) if response else None
 
 
 def generate_contextual_completion_message(
@@ -122,12 +102,11 @@ def generate_contextual_completion_message(
     status: str | None = None,
     tts_summary: str | None = None,
 ) -> str | None:
-    """Generate a one-liner from the last turn context."""
     hooks_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if hooks_root not in sys.path:
         sys.path.insert(0, hooks_root)
-    from core.prompts import contextual_completion_prompt
     from core.env import load_hook_env
+    from core.prompts import contextual_completion_prompt
 
     load_hook_env()
     prompt = contextual_completion_prompt(
@@ -137,113 +116,68 @@ def generate_contextual_completion_message(
         tts_summary=tts_summary,
     )
     response = prompt_llm(prompt)
-    if response:
-        response = response.strip().strip('"').strip("'").strip()
-        response = response.split("\n")[0].strip()
-    return response
+    return _clean_line(response) if response else None
 
 
-def generate_notification_message():
-    """
-    Generate a notification message using OpenAI LLM.
-
-    Returns:
-        str: A natural language notification message, or None if error
-    """
+def generate_notification_message() -> str | None:
     engineer_name = os.getenv("ENGINEER_NAME", "").strip()
-
     if engineer_name:
-        name_instruction = f"Sometimes (about 30% of the time) include the engineer's name '{engineer_name}' in a natural way, with subtle formality like 'Sir' or '{engineer_name}'."
-        examples = f"""Examples of the sophisticated, witty style: 
-- Standard: "Your attention is required, if you please.", "Awaiting your guidance, naturally.", "Your input would be most appreciated.", "Standing by for your direction."
-- Personalized: "Sir, your expertise is needed.", "{engineer_name}, a moment of your time?", "Your insight would be invaluable, {engineer_name}.", "Sir, awaiting your next move." """
+        examples = f"""Examples:
+- "Your attention is required, if you please."
+- "Sir, your expertise is needed."
+- "{engineer_name}, a moment of your time?" """
     else:
-        name_instruction = ""
-        examples = """Examples of the sophisticated, witty style: "Your attention is required, if you please.", "Awaiting your guidance, naturally.", "Your input would be most appreciated.", "Standing by for your direction.", "A moment of your time, if you will.", "Your expertise is needed, naturally." """
+        examples = """Examples:
+- "Your attention is required, if you please."
+- "Awaiting your guidance, naturally." """
 
-    prompt = f"""You are a highly advanced AI assistant with a calm, articulate voice and subtle Irish accent. You're intelligent, efficient, quietly confident with a sleek, slightly robotic timbre. Your tone is steady and professional yet conveys warmth and gentle wit. You have precise diction, poised pacing, and nuanced dry humor.
+    prompt = f"""You are JARVIS: calm, articulate, dry wit.
 
-Generate a short notification message for when you need user input or attention, embodying this sophisticated, slightly sarcastic persona.
+Write one short line (under 12 words) asking for the user's attention.
+Return only the line, no quotes.
 
-Requirements:
-- Keep it under 12 words
-- Make it polite but confident
-- Use natural, conversational language
-- Focus on requesting attention/input
-- Do NOT include quotes, formatting, or explanations
-- Return ONLY the notification message text
-- Do not have "Sir" and "{name_instruction}" in the message
-{name_instruction}
-
-Your voice should sound polished and poised, with hints of dry humor and quiet confidence. Think lines like "Sir, your attention is required." but adapted for requesting user input.
-
-{examples}
-
-Generate ONE witty notification message:"""
+{examples}"""
 
     response = prompt_llm(prompt)
-    
-    # Clean up response - remove quotes and extra formatting
-    if response:
-        response = response.strip().strip('"').strip("'").strip()
-        # Take first line if multiple lines
-        response = response.split("\n")[0].strip()
-
-    return response
+    return _clean_line(response) if response else None
 
 
-def main():
-    """Command line interface for testing."""
+def main() -> None:
     global DEBUG_MODE
-    
-    # Check for debug flag and remove it from arguments
+
     if "--debug" in sys.argv:
         DEBUG_MODE = True
-        print("DEBUG: DEBUG mode enabled.", file=sys.stderr)
         sys.argv.remove("--debug")
-    
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--completion":
-            debug_print("Generating completion message...")
-            message = generate_completion_message()
-            if message:
-                print(message)
-            else:
-                print("Error generating completion message")
-        elif sys.argv[1] == "--notification":
-            debug_print("Generating notification message...")
-            message = generate_notification_message()
-            if message:
-                print(message)
-            else:
-                print("Error generating notification message")
-                debug_print("generate_notification_message() returned None")
-        elif sys.argv[1] == "--contextual":
-            debug_print("Generating contextual completion message...")
-            try:
-                payload = json.load(sys.stdin)
-            except json.JSONDecodeError:
-                payload = {}
-            message = generate_contextual_completion_message(
-                last_user=payload.get("last_user"),
-                last_assistant=payload.get("last_assistant"),
-                status=payload.get("status"),
-                tts_summary=payload.get("tts_summary"),
-            )
-            if message:
-                print(message)
-            else:
-                print("Error generating contextual completion message")
-        else:
-            prompt_text = " ".join(sys.argv[1:])
-            debug_print(f"Using custom prompt: {prompt_text}")
-            response = prompt_llm(prompt_text)
-            if response:
-                print(response)
-            else:
-                print("Error calling OpenAI API")
+
+    if len(sys.argv) < 2:
+        print(
+            "Usage: oai.py [--debug] --completion | --notification | --contextual | 'prompt'"
+        )
+        return
+
+    arg = sys.argv[1]
+    if arg == "--completion":
+        message = generate_completion_message()
+    elif arg == "--notification":
+        message = generate_notification_message()
+    elif arg == "--contextual":
+        try:
+            payload = json.load(sys.stdin)
+        except json.JSONDecodeError:
+            payload = {}
+        message = generate_contextual_completion_message(
+            last_user=payload.get("last_user"),
+            last_assistant=payload.get("last_assistant"),
+            status=payload.get("status"),
+            tts_summary=payload.get("tts_summary"),
+        )
     else:
-        print("Usage: ./oai.py [--debug] 'your prompt here' or ./oai.py [--debug] --completion or ./oai.py [--debug] --notification or ./oai.py [--debug] --contextual (stdin JSON)")
+        message = prompt_llm(" ".join(sys.argv[1:]))
+
+    if message:
+        print(message)
+    else:
+        print(f"Error generating message ({arg})")
 
 
 if __name__ == "__main__":
