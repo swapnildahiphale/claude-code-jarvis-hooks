@@ -21,6 +21,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core.env import load_hook_env
+from core.presence import guard_voice_pipeline
 from core.tts import speak
 
 load_hook_env()
@@ -29,6 +30,8 @@ load_hook_env()
 def announce_subagent_completion():
     """Announce subagent completion using the best available TTS service."""
     try:
+        if not guard_voice_pipeline("subagent_stop"):
+            return
         speak("Subagent Complete")
     except Exception:
         pass

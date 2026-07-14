@@ -111,6 +111,8 @@ Skip voice when you are already focused on Cursor — useful when you are watchi
 2. Optional: `JARVIS_PRESENCE_APPS=Cursor` (comma-separated app names)
 3. Debug suppressions in `logs/jarvis_voice.jsonl` (`presence_suppressed` events)
 
+When suppressed, the hook skips **both** LLM message generation and TTS (no OpenAI/ElevenLabs tokens spent). Look for `"skipped_llm": true` in `presence_suppressed` log lines.
+
 macOS uses `osascript` to read the frontmost app (default 2s timeout — sub-200ms often times out). Linux is best-effort via `xdotool`. When detection fails, `JARVIS_PRESENCE_FAIL_OPEN=false` suppresses voice; `true` plays anyway. Check `logs/jarvis_voice.jsonl` for `presence_check` and `presence_suppressed` events.
 
 ## 🎮 Usage

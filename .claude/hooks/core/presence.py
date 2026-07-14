@@ -160,3 +160,20 @@ def should_notify() -> bool:
         reason="app_focused" if focused else "app_not_focused",
     )
     return notify
+
+
+def guard_voice_pipeline(stage: str = "pipeline") -> bool:
+    """
+    Return True when LLM + TTS should run.
+
+    Call before any OpenAI/Anthropic message generation to avoid wasted tokens
+    when the user is already focused on the IDE.
+    """
+    if should_notify():
+        return True
+    _log_voice_event({
+        "event": "presence_suppressed",
+        "stage": stage,
+        "skipped_llm": True,
+    })
+    return False

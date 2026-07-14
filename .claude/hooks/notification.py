@@ -23,6 +23,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core.env import load_hook_env
+from core.presence import guard_voice_pipeline
 from core.tts import speak
 
 load_hook_env()
@@ -87,6 +88,8 @@ def get_llm_notification_message():
 def announce_notification():
     """Announce that the agent needs user input."""
     try:
+        if not guard_voice_pipeline("notification"):
+            return
         speak(get_llm_notification_message())
     except Exception:
         pass

@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.debounce import read_stop_state
 from core.llm import completion_message
+from core.presence import guard_voice_pipeline
 from core.tts import speak
 
 
@@ -27,6 +28,8 @@ def main() -> None:
     time.sleep(args.wait)
     current = read_stop_state(args.session_key)
     if current is None or abs(current - args.armed_at) > 0.001:
+        return
+    if not guard_voice_pipeline("debounce_worker"):
         return
     speak(completion_message())
 

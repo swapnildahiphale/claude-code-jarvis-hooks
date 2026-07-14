@@ -11,14 +11,14 @@ Cursor hooks do not expose focus/presence in the `stop` payload. A hook-side OS 
 
 ## Solution
 
-Opt-in presence gate in `core/presence.py`, enforced centrally in `core.tts.speak()` so all TTS paths share one policy.
+Opt-in presence gate in `core/presence.py`, enforced via `guard_voice_pipeline()` **before** LLM calls and `should_notify()` inside `speak()` for TTS-only paths.
 
 ```
-stop / notification / subagent_stop / debounce_worker
-  → speak()
-    → should_notify()  [loads .env, probes frontmost app]
-      → False: log presence_suppressed, return
-      → True:  existing TTS chain (cloud / jarvis-say / pyttsx3)
+stop / notification / debounce_worker
+  → guard_voice_pipeline()   [skip LLM + TTS when focused]
+    → contextual_completion_message() / completion_message()
+      → speak()
+        → should_notify()      [TTS gate; subagent / worker paths]
 ```
 
 `jarvis_say_worker.py` re-checks before playback because generation can take 30–55s.
@@ -42,7 +42,7 @@ stop / notification / subagent_stop / debounce_worker
 | Event | When |
 |-------|------|
 | `presence_check` | Gate enabled; records `frontmost`, `notify`, `reason`, `detect_error` |
-| `presence_suppressed` | TTS skipped (`speak()` or worker playback stage) |
+| `presence_suppressed` | TTS skipped; `skipped_llm: true` when LLM was also bypassed |
 
 Example (suppressed while in Cursor):
 

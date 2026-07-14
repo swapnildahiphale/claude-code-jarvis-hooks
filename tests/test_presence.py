@@ -6,6 +6,7 @@ import pytest
 
 from core.presence import (
     frontmost_app_name,
+    guard_voice_pipeline,
     presence_apps,
     presence_fail_open,
     presence_gate_enabled,
@@ -138,6 +139,51 @@ def test_frontmost_app_darwin(mock_run):
         assert frontmost_app_name() == "Cursor"
     mock_run.assert_called_once()
     assert mock_run.call_args[0][0][0] == "osascript"
+
+
+@patch("core.presence.probe_frontmost", return_value=("Cursor", None))
+def test_guard_voice_pipeline_skips_llm_path(_mock_probe):
+    with patch.dict(os.environ, {"JARVIS_NOTIFY_ONLY_WHEN_AWAY": "true"}, clear=False):
+        assert guard_voice_pipeline("stop_hook") is False
+
+
+@patch("core.presence.probe_frontmost", return_value=("Safari", None))
+def test_guard_voice_pipeline_allows_llm_path(_mock_probe):
+    with patch.dict(os.environ, {"JARVIS_NOTIFY_ONLY_WHEN_AWAY": "true"}, clear=False):
+        assert guard_voice_pipeline("stop_hook") is True
+
+
+@patch("core.presence.probe_frontmost", return_value=("Cursor", None))
+def test_stop_hook_skips_contextual_and_speak(_mock_probe, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("JARVIS_NOTIFY_ONLY_WHEN_AWAY", "true")
+    ctx_calls: list[int] = []
+    speak_calls: list[str] = []
+    monkeypatch.setattr(
+        "core.contextual.contextual_completion_message",
+        lambda *a, **k: ctx_calls.append(1) or "hi",
+    )
+    monkeypatch.setattr("core.tts.speak", lambda m: speak_calls.append(m))
+
+    from io import StringIO
+    import sys
+
+    import stop
+
+    old_stdin = sys.stdin
+    old_argv = sys.argv
+    sys.stdin = StringIO('{"transcript_path":"","status":"completed"}')
+    sys.argv = ["stop.py", "--chat"]
+    try:
+        with pytest.raises(SystemExit) as exc:
+            stop.main()
+        assert exc.value.code == 0
+    finally:
+        sys.stdin = old_stdin
+        sys.argv = old_argv
+
+    assert ctx_calls == []
+    assert speak_calls == []
 
 
 @patch("core.tts.should_notify", return_value=False)

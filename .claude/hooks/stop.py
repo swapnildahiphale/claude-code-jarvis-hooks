@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core.contextual import contextual_completion_message
 from core.env import load_hook_env
+from core.presence import guard_voice_pipeline
 from core.tts import speak
 
 load_hook_env()
@@ -72,6 +73,8 @@ def main():
                 pass
 
         status = input_data.get("status")
+        if not guard_voice_pipeline("stop_hook"):
+            sys.exit(0)
         message = contextual_completion_message(transcript_path, status=status)
         speak(message)
 
